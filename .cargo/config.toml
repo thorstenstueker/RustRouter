@@ -1,0 +1,3 @@
+[env]
+# zig's clang treats __DATE__/__TIME__ in mimalloc as an error for the Windows target.
+CFLAGS_x86_64_pc_windows_gnu = "-Wno-error=date-time"

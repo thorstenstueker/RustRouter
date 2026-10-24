@@ -16,6 +16,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// The pipeline stage reported to a [`JobObserver`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JobStage {
+    Routing,
+    Optimizing,
+}
+
+/// Progress information passed to a [`JobObserver`].
+#[derive(Clone, Copy, Debug)]
+pub struct JobProgress {
+    pub stage: JobStage,
+    /// The current router or optimizer pass (1-based, 0 before the first pass).
+    pub pass: i32,
+    /// True when called at the end of a pass.
+    pub pass_finished: bool,
+}
+
+/// Called by the pipeline with the current board while routing (e.g. to update a GUI).
+/// Observers only read the board, so they do not influence the routing result.
+pub type JobObserver = Arc<dyn Fn(&Board, &JobProgress) + Send + Sync>;
+
 /// The state of a routing job relevant for the pipeline (subset of `RoutingJob`).
 pub struct RoutingJob {
     pub board: Board,
@@ -26,6 +47,9 @@ pub struct RoutingJob {
     /// `job.state == TIMED_OUT`
     pub timed_out: Arc<AtomicBool>,
     pub current_pass: i32,
+    pub observer: Option<JobObserver>,
+    pub stage: JobStage,
+    pub progress_pass: i32,
 }
 
 impl RoutingJob {
@@ -37,6 +61,9 @@ impl RoutingJob {
             timeout_at: None,
             timed_out: Arc::new(AtomicBool::new(false)),
             current_pass: 0,
+            observer: None,
+            stage: JobStage::Routing,
+            progress_pass: 0,
         }
     }
 
@@ -62,6 +89,20 @@ impl RoutingJob {
                 return;
             }
         });
+    }
+
+    /// Reports the current board to the observer (if any).
+    pub fn notify(&self, pass_finished: bool) {
+        if let Some(o) = &self.observer {
+            o(
+                &self.board,
+                &JobProgress {
+                    stage: self.stage,
+                    pass: self.progress_pass,
+                    pass_finished,
+                },
+            );
+        }
     }
 
     pub fn log_info(&self, msg: &str) {
@@ -134,7 +175,10 @@ pub fn run_pipeline(job: &mut RoutingJob) {
         job.settings.autorouter.max_passes = original;
     }
     job.board.finish_autoroute();
+    job.notify(true);
     if run_optimizer && !job.thread.is_stop_requested() {
+        job.stage = JobStage::Optimizing;
+        job.progress_pass = 0;
         let mut opt = optimizer::BatchOptimizer::new(job);
         opt.run_batch_loop(job);
     }

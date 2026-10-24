@@ -252,3 +252,58 @@ pub fn prepare_loaded_board(dsn: &DsnReadResult, board: &mut Board, settings: &m
         log::warn!("The board has {} pre-existing clearance violation(s).", violations.len());
     }
 }
+
+/// The user options of a routing job (the command line options of the CLI, the settings
+/// dialog of the GUI).
+#[derive(Clone, Debug, Default)]
+pub struct JobOptions {
+    pub max_passes: Option<i32>,
+    pub max_threads: Option<i32>,
+    pub improvement_threshold: Option<f32>,
+    pub job_timeout: Option<String>,
+    pub no_optimizer: bool,
+    pub no_fanout: bool,
+    pub no_router: bool,
+}
+
+/// Creates the routing job for a loaded design: the settings from the defaults, the user
+/// options and the DSN file, and the prepared board.
+pub fn create_routing_job(dsn: &DsnReadResult, opts: &JobOptions) -> crate::autoroute::pipeline::RoutingJob {
+    let mut settings = RouterSettings::default();
+    if let Some(mp) = opts.max_passes {
+        settings.autorouter.max_passes = mp;
+    }
+    if let Some(mt) = opts.max_threads {
+        settings.set_max_threads(Some(mt));
+    }
+    if let Some(t) = opts.improvement_threshold {
+        settings.optimizer.optimization_improvement_threshold = t;
+    }
+    if let Some(t) = &opts.job_timeout {
+        settings.job_timeout_string = t.clone();
+    }
+    if opts.no_optimizer {
+        settings.optimizer.enabled = false;
+    }
+    if opts.no_fanout {
+        settings.fanout.enabled = false;
+    }
+    if opts.no_router {
+        settings.autorouter.enabled = false;
+    }
+    let mut board = dsn.board.clone();
+    prepare_loaded_board(dsn, &mut board, &mut settings);
+    if opts.no_optimizer {
+        settings.optimizer.enabled = false;
+    }
+    if opts.no_router {
+        settings.autorouter.enabled = false;
+    }
+    settings.validate_against_board(Some(&board));
+    let mut job = crate::autoroute::pipeline::RoutingJob::new(board, settings);
+    if let Some(secs) = crate::autoroute::pipeline::parse_timespan_string(&job.settings.job_timeout_string) {
+        let secs = secs.min(24 * 60 * 60).max(0);
+        job.start_timeout_monitor(std::time::Duration::from_secs(secs as u64));
+    }
+    job
+}

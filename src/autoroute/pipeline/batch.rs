@@ -548,6 +548,7 @@ impl BatchAutorouter {
                 }
                 items_to_go -= 1;
                 ripped_item_count += ripped.len();
+                job.notify(false);
             }
         }
         let _ = (items_to_go, ripped_item_count);
@@ -884,9 +885,11 @@ impl BatchAutorouter {
                 break;
             }
             job.current_pass = current_pass;
+            job.progress_pass = current_pass;
             bh.add(&job.board);
             let pass_start = std::time::Instant::now();
             continue_autorouting = self.autoroute_pass(job, current_pass);
+            job.notify(true);
             let (mut stats_after, mut score_after) = Self::router_score(job);
             if bh.size() as i32 >= STOP_AT_PASS_MINIMUM || job.thread.is_stop_autorouter_requested() {
                 if (current_pass % STOP_AT_PASS_MODULO == 0 && current_pass >= STOP_AT_PASS_MINIMUM)

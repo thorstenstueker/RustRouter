@@ -17,6 +17,19 @@ The input is a Specctra DSN design (as exported by KiCad and other CAD tools), t
 Specctra SES session that can be imported back into the CAD tool. Set `RUST_LOG=debug` for
 more output.
 
+## Graphical user interface
+
+```
+rustrouter-gui [board.dsn]
+```
+
+The GUI follows the Freerouting board frame: open a DSN design (File > Open or drag and drop),
+start the autorouter (fanout, routing passes and optimizer) and watch the board while it is
+routed, then export the Specctra session (File > Export). The toolbar selects the active layer
+and the visible layers; the mouse wheel zooms, dragging pans, a double click shows the whole
+board. Autorouter > Settings sets the number of passes, the optimizer threads and the job
+timeout. The routing result is the same as with the command line tool.
+
 ## Building
 
 ```
@@ -35,9 +48,10 @@ The macOS binaries are not code signed.
 ./package.sh
 ```
 
-writes to `dist/`: a Windows x86_64 `.zip`, Linux x86_64 `.deb`, `.rpm` and `.tar.gz`
-(glibc >= 2.17) and a macOS `.dmg` with a universal binary (x86_64 + arm64, unsigned), plus
-`SHA256SUMS`. Besides zig and cargo-zigbuild it needs `cargo install cargo-deb
+writes to `dist/`: a Windows x86_64 `.zip`, Linux x86_64 `.deb`, `.rpm` (with desktop entry)
+and `.tar.gz` (glibc >= 2.17) and a macOS `.dmg` with `RustRouter.app` and the command line tool
+(universal binaries for x86_64 + arm64, unsigned), plus `SHA256SUMS`. The macOS GUI needs a
+macOS SDK for the frameworks (`SDKROOT` or `~/.local/share/macos-sdk/MacOSX*.sdk`). Besides zig and cargo-zigbuild it needs `cargo install cargo-deb
 cargo-generate-rpm`, `zip`, `mkfs.hfsplus` (hfsplus-tools) and the `hfsplus` and `dmg` tools of
 [libdmg-hfsplus](https://github.com/mozilla/libdmg-hfsplus) to build the DMG on Linux.
 

@@ -1,6 +1,6 @@
 [package]
 name = "rustrouter"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "PCB autorouter for Specctra DSN designs (Rust port of Freerouting)"
 license = "GPL-3.0-only"
@@ -10,20 +10,20 @@ authors = ["RustRouter contributors"]
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
+eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"], optional = true }
 env_logger = "0.11.11"
 log = "0.4.34"
+# mimalloc is faster than the system allocators (cross-compiling it for macOS needs the macOS
+# SDK, see package.sh).
+mimalloc = { version = "0.1", default-features = false }
 num-bigint = "0.5.1"
 num-integer = "0.1.47"
 num-traits = "0.2.19"
 rayon = "1.12.0"
 regex-lite = "0.1.9"
+rfd = { version = "0.17.2", optional = true }
 rustc-hash = "2.1.3"
 smallvec = "1.16.4"
-
-# mimalloc is faster than the system allocators on Linux and Windows; on macOS the C sources
-# do not cross-compile with zig (missing CommonCrypto headers), so the system allocator is used.
-[target.'cfg(not(target_os = "macos"))'.dependencies]
-mimalloc = { version = "0.1", default-features = false }
 
 [profile.dev]
 overflow-checks = false
@@ -40,17 +40,36 @@ panic = "unwind"
 inherits = "release"
 debug = "line-tables-only"
 
+[features]
+default = ["gui"]
+# The graphical user interface (rustrouter-gui).
+gui = ["dep:eframe", "dep:rfd"]
+
+[[bin]]
+name = "rustrouter"
+path = "src/main.rs"
+
+[[bin]]
+name = "rustrouter-gui"
+path = "src/gui/main.rs"
+required-features = ["gui"]
+
 [package.metadata.deb]
 maintainer = "RustRouter contributors"
 section = "electronics"
 priority = "optional"
-depends = "libc6 (>= 2.17)"
+depends = "libc6 (>= 2.17), libgl1, libxkbcommon0"
+recommends = "libegl1, libxkbcommon-x11-0, libwayland-client0, xdg-desktop-portal"
 extended-description = """\
 RustRouter routes printed circuit boards: it reads a Specctra DSN design (as exported by \
 KiCad and other CAD tools) and writes a Specctra SES session to import back. It is a Rust \
-port of the Freerouting autorouter."""
+port of the Freerouting autorouter with a command line tool (rustrouter) and a graphical \
+user interface (rustrouter-gui)."""
 assets = [
   ["target/release/rustrouter", "usr/bin/", "755"],
+  ["target/release/rustrouter-gui", "usr/bin/", "755"],
+  ["assets/rustrouter.desktop", "usr/share/applications/rustrouter.desktop", "644"],
+  ["assets/rustrouter.png", "usr/share/icons/hicolor/256x256/apps/rustrouter.png", "644"],
   ["README.md", "usr/share/doc/rustrouter/README.md", "644"],
 ]
 
@@ -59,5 +78,12 @@ summary = "PCB autorouter for Specctra DSN designs (Rust port of Freerouting)"
 group = "Applications/Engineering"
 assets = [
   { source = "target/release/rustrouter", dest = "/usr/bin/rustrouter", mode = "755" },
+  { source = "target/release/rustrouter-gui", dest = "/usr/bin/rustrouter-gui", mode = "755" },
+  { source = "assets/rustrouter.desktop", dest = "/usr/share/applications/rustrouter.desktop", mode = "644" },
+  { source = "assets/rustrouter.png", dest = "/usr/share/icons/hicolor/256x256/apps/rustrouter.png", mode = "644" },
   { source = "README.md", dest = "/usr/share/doc/rustrouter/README.md", mode = "644", doc = true },
 ]
+
+[package.metadata.generate-rpm.requires]
+"libGL.so.1()(64bit)" = "*"
+"libxkbcommon.so.0()(64bit)" = "*"

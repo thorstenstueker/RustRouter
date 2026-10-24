@@ -218,9 +218,11 @@ impl BatchOptimizer {
                 }
             }
             current_pass += 1;
+            job.progress_pass = current_pass;
             let score_before = stats::board_stats(&job.board, &job.settings).optimizer_score;
             let with_preferred = current_pass % 2 != 0;
             self.opt_route_pass(job, current_pass, with_preferred);
+            job.notify(true);
             if self.is_timed_out {
                 break;
             }
@@ -384,6 +386,7 @@ impl BatchOptimizer {
                 stopped_or_timed_out = true;
                 break;
             }
+            job.notify(false);
             let end = (i + chunk_size).min(candidates.len());
             let chunk = &candidates[i..end];
             let baseline_metrics = stats::optimizer_metrics(&job.board);

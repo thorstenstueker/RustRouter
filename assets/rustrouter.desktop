@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=RustRouter
+GenericName=PCB Autorouter
+Comment=Route printed circuit boards (Specctra DSN designs)
+Exec=rustrouter-gui %f
+Icon=rustrouter
+Terminal=false
+Categories=Development;Electronics;Engineering;
+Keywords=PCB;autorouter;Specctra;DSN;KiCad;Freerouting;
